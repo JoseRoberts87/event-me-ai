@@ -1,0 +1,7 @@
+# Local trace viewer. UI: http://localhost:16686 — OTLP HTTP on :4318.
+services:
+  jaeger:
+    image: jaegertracing/jaeger:2.21.0
+    ports:
+      - "16686:16686"
+      - "4318:4318"

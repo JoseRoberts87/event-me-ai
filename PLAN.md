@@ -66,17 +66,19 @@ Polling frequency scales with proximity: weekly (>60 days out) → daily (≤60 
 ## Phases
 
 ### Phase 1 — MVP
-- Project scaffold: Next.js, Supabase, Inngest, Strands + OTel wiring, CI
-- Invite-only sign-up (magic link via Supabase Auth)
-- Interest onboarding (interest agent)
-- Concert discovery + follow (discovery agent, Ticketmaster/SeatGeek)
-- Per-event timeline + daily digest email (tracker + digest agents, web search)
-- Telemetry visible end-to-end in local Jaeger/Langfuse
+- [x] Project scaffold: Next.js, Supabase, Inngest, Strands + OTel wiring
+- [ ] CI (lint, typecheck, test, build)
+- [x] Invite-only sign-up (magic link via Supabase Auth)
+- [x] Interest onboarding (interest agent)
+- [x] Concert discovery + follow (discovery agent, Ticketmaster) — SeatGeek still to add
+- [x] Per-event timeline + daily digest email (tracker + digest agents, web search)
+- [x] Proximity-based tracking cadence
+- [ ] Telemetry verified end-to-end against a live backend (covered by an in-memory test so far)
 
 ### Phase 2
 - Social sources (Reddit, YouTube, Bluesky), setlist.fm
 - Real-time push alerts for high-importance changes
-- Proximity-based cadence + cost dashboards
+- Cost dashboards
 
 ### Phase 3
 - Personalization from engagement (clicks/dismissals)
