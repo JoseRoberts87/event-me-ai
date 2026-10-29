@@ -10,7 +10,7 @@ An AI-powered tracker for music concerts. Users describe the artists and scenes 
 | Launch vertical | Music concerts only |
 | Access | Invite-only (admin-issued invite codes) |
 | Stack | Next.js (TypeScript) + Supabase (Postgres, Auth, pgvector) + Claude API |
-| Agent framework & telemetry | Strands Agents (TypeScript SDK) with its built-in OpenTelemetry tracing |
+| Agent framework & telemetry | Strands Agents (TypeScript SDK); its OpenTelemetry traces go to Langfuse |
 | Background jobs | Inngest (scheduled, retryable per-event workflows) |
 | Notifications | Resend (email digests) + Web Push |
 
@@ -24,7 +24,7 @@ Next.js app (UI + API routes)
    └── Inngest jobs ──► Strands agents ──► Claude (+ web search tool)
                           │      └──► tools: Ticketmaster, SeatGeek, setlist.fm,
                           │                 Reddit, YouTube, Bluesky, RSS
-                          └──► OpenTelemetry traces ──► OTLP collector/backend
+                          └──► OpenTelemetry traces ──► Langfuse
 ```
 
 ### Agents (Strands, TypeScript)
@@ -33,11 +33,11 @@ Next.js app (UI + API routes)
 3. **Tracker agent** — per followed event, gathers new items from sources, dedupes (pgvector similarity), scores relevance, and detects material changes (venue/time change, presale, support act announced, cancellation).
 4. **Digest agent** — writes per-event and daily summaries with source links.
 
-### Telemetry (Strands + OpenTelemetry)
+### Telemetry (Strands + OpenTelemetry → Langfuse)
 - Enable Strands tracing in every agent; spans cover agent invocations, model calls (tokens, latency), tool calls, and the event loop.
-- Add custom attributes: `user.id`, `event.id`, `job.name`, `agent.name`, cost estimate.
+- Propagate Langfuse trace attributes to every span: `user.id`, `session.id` (one session per concert), metadata for event id and job name.
 - Wrap Inngest job runs in parent spans so agent traces nest under the job that triggered them.
-- Export via OTLP HTTP (`OTEL_EXPORTER_OTLP_ENDPOINT`). Dev: local Jaeger or Langfuse via Docker. Prod: Langfuse (LLM-focused) or any OTLP backend.
+- Export via OTLP HTTP to Langfuse (Cloud, or self-hosted via Docker Compose). Endpoint and auth are derived from Langfuse keys.
 - Dashboards/alerts: cost per user/event, job failure rate, source latency, update volume.
 
 ## Data model (initial)
@@ -73,7 +73,7 @@ Polling frequency scales with proximity: weekly (>60 days out) → daily (≤60 
 - [x] Concert discovery + follow (discovery agent, Ticketmaster) — SeatGeek still to add
 - [x] Per-event timeline + daily digest email (tracker + digest agents, web search)
 - [x] Proximity-based tracking cadence
-- [ ] Telemetry verified end-to-end against a live backend (covered by an in-memory test so far)
+- [ ] Telemetry verified against a real Langfuse project (export format and auth checked against a local stand-in)
 
 ### Phase 2
 - Social sources (Reddit, YouTube, Bluesky), setlist.fm
@@ -91,5 +91,5 @@ Polling frequency scales with proximity: weekly (>60 days out) → daily (≤60 
 - **Accuracy/staleness** — every update links its source; change detection compares against stored event state.
 
 ## Open items
-- Telemetry backend for prod (Langfuse cloud vs self-hosted vs other)
+- Langfuse Cloud vs self-hosted for production
 - Hosting (Vercel + Supabase cloud assumed)
