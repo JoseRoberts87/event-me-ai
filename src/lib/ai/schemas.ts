@@ -14,7 +14,7 @@ export type InterestProfile = z.infer<typeof InterestProfile>;
 export const DiscoveryResult = z.object({
   matches: z.array(
     z.object({
-      sourceId: z.string().describe("The Ticketmaster id exactly as returned by search_concerts"),
+      id: z.string().describe("The id exactly as returned by search_concerts"),
       reason: z.string().describe("One sentence on why this matches the user's interests"),
       score: z.number().min(0).max(1),
     }),

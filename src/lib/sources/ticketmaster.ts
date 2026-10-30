@@ -1,29 +1,7 @@
 import { withSpan } from "@/lib/telemetry";
+import type { ConcertListing, ConcertSearch } from "./types";
 
 const BASE_URL = "https://app.ticketmaster.com/discovery/v2";
-
-export type ConcertListing = {
-  source: "ticketmaster";
-  sourceId: string;
-  name: string;
-  artists: string[];
-  venue: string | null;
-  city: string | null;
-  country: string | null;
-  startsAt: string | null;
-  url: string | null;
-  imageUrl: string | null;
-  status: string;
-};
-
-export type ConcertSearch = {
-  keyword?: string;
-  city?: string;
-  countryCode?: string;
-  radiusMiles?: number;
-  startDate?: string; // ISO date
-  size?: number;
-};
 
 type TmEvent = {
   id: string;
@@ -56,7 +34,7 @@ function toListing(e: TmEvent): ConcertListing {
 }
 
 /** Searches Ticketmaster for music events. */
-export async function searchConcerts(query: ConcertSearch): Promise<ConcertListing[]> {
+export async function searchTicketmaster(query: ConcertSearch): Promise<ConcertListing[]> {
   const apiKey = process.env.TICKETMASTER_API_KEY;
   if (!apiKey) throw new Error("TICKETMASTER_API_KEY is not set");
 
