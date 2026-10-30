@@ -67,10 +67,10 @@ Polling frequency scales with proximity: weekly (>60 days out) → daily (≤60 
 
 ### Phase 1 — MVP
 - [x] Project scaffold: Next.js, Supabase, Inngest, Strands + OTel wiring
-- [ ] CI (lint, typecheck, test, build)
+- [x] CI (lint, typecheck, test, build)
 - [x] Invite-only sign-up (magic link via Supabase Auth)
 - [x] Interest onboarding (interest agent)
-- [x] Concert discovery + follow (discovery agent, Ticketmaster) — SeatGeek still to add
+- [x] Concert discovery + follow (discovery agent, Ticketmaster + SeatGeek, deduped)
 - [x] Per-event timeline + daily digest email (tracker + digest agents, web search)
 - [x] Proximity-based tracking cadence
 - [ ] Telemetry verified against a real Langfuse project (export format and auth checked against a local stand-in)

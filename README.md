@@ -18,7 +18,7 @@ See [PLAN.md](./PLAN.md) for the product plan and roadmap.
 | Agent | File | Job |
 |---|---|---|
 | Interest | `src/lib/ai/agents/interest.ts` | Free-text taste → structured profile |
-| Discovery | `src/lib/ai/agents/discovery.ts` | Searches Ticketmaster via a tool, ranks matches |
+| Discovery | `src/lib/ai/agents/discovery.ts` | Searches Ticketmaster and SeatGeek via a tool, ranks matches |
 | Tracker | `src/lib/ai/agents/tracker.ts` | Claude web search for new updates on one concert |
 | Digest | `src/lib/ai/agents/digest.ts` | Writes the daily email |
 
@@ -66,7 +66,9 @@ npm run inngest:dev               # Inngest dev UI → http://localhost:8288
 npm run invite -- friend@example.com
 ```
 
-Keys you need: Anthropic API key, Ticketmaster Discovery API key (free at developer.ticketmaster.com), Resend API key (for digests), and Langfuse project keys.
+Keys you need: Anthropic API key, at least one concert source (Ticketmaster Discovery API key from developer.ticketmaster.com and/or a SeatGeek client ID from seatgeek.com/account/develop), Resend API key (for digests), and Langfuse project keys.
+
+Concert sources (`src/lib/sources/`) are searched in parallel; a source without credentials is skipped, a failing source is logged and skipped, and the same show listed on both is kept once (Ticketmaster preferred).
 
 ### Langfuse
 
@@ -78,6 +80,10 @@ To self-host instead, run Langfuse's Docker Compose setup (`git clone https://gi
 
 - Disable public sign-ups (Authentication → Sign In / Providers) so accounts are created only through invites.
 - Add `http://localhost:3000/auth/callback` (and your production URL) to the redirect allow list.
+
+## CI
+
+`.github/workflows/ci.yml` runs lint, typecheck, tests and a production build on every pull request and on pushes to `master`.
 
 ## Scripts
 
