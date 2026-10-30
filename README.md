@@ -45,7 +45,7 @@ App code wraps jobs and actions in `withSpan()` (`src/lib/telemetry/index.ts`), 
 
 - flushes buffered spans when the root span ends, since serverless functions can freeze before the batch exporter runs
 
-Set `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` and `LANGFUSE_BASE_URL`; `src/lib/telemetry/setup.ts` derives the OTLP endpoint (`<base>/api/public/otel`) and Basic-auth header from them. Explicit `OTEL_EXPORTER_OTLP_*` vars take precedence if you want another backend.
+Set `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` and `LANGFUSE_BASE_URL`; `src/lib/telemetry/setup.ts` derives the OTLP endpoint (`<base>/api/public/otel`) and Basic-auth header from them. Langfuse is the only trace backend; without these keys tracing is off.
 
 ## Local setup
 

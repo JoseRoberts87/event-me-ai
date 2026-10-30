@@ -104,11 +104,19 @@ describe("configureLangfuseExporter", () => {
     process.env.LANGFUSE_SECRET_KEY = "sk-lf-1";
     process.env.LANGFUSE_BASE_URL = "https://us.cloud.langfuse.com/";
 
-    configureLangfuseExporter();
+    expect(configureLangfuseExporter()).toBe(true);
 
     expect(process.env.OTEL_EXPORTER_OTLP_ENDPOINT).toBe("https://us.cloud.langfuse.com/api/public/otel");
     const auth = Buffer.from("pk-lf-1:sk-lf-1").toString("base64");
     expect(process.env.OTEL_EXPORTER_OTLP_HEADERS).toBe(`Authorization=Basic%20${auth},x-langfuse-ingestion-version=4`);
+    process.env = saved;
+  });
+
+  it("leaves tracing off without Langfuse keys", () => {
+    const saved = { ...process.env };
+    delete process.env.LANGFUSE_PUBLIC_KEY;
+    delete process.env.LANGFUSE_SECRET_KEY;
+    expect(configureLangfuseExporter()).toBe(false);
     process.env = saved;
   });
 });
