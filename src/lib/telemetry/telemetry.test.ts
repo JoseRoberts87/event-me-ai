@@ -9,6 +9,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { createModel } from "@/lib/ai/model";
 import { agentTraceAttributes, withSpan } from "@/lib/telemetry";
+import { TRACE_ATTRIBUTE_KEYS } from "@/lib/telemetry/attributes";
+import { configureLangfuseExporter } from "@/lib/telemetry/setup";
 
 const exporter = new InMemorySpanExporter();
 const requests: Record<string, unknown>[] = [];
@@ -33,7 +35,7 @@ const fakeFetch: typeof fetch = async (_url, init) => {
 beforeAll(() => {
   process.env.ANTHROPIC_API_KEY ??= "test";
   const provider = new NodeTracerProvider({
-    spanProcessors: [new BaggageSpanProcessor((key) => key.startsWith("app.")), new SimpleSpanProcessor(exporter)],
+    spanProcessors: [new BaggageSpanProcessor((key) => TRACE_ATTRIBUTE_KEYS.has(key)), new SimpleSpanProcessor(exporter)],
   });
   trace.setGlobalTracerProvider(provider);
   context.setGlobalContextManager(new AsyncLocalStorageContextManager().enable());
@@ -62,7 +64,6 @@ describe("Strands telemetry", () => {
     });
 
     expect(output).toEqual({ city: "Austin" });
-    if (process.env.DEBUG_SPANS) console.log(exporter.getFinishedSpans().map((s) => s.name));
 
     const spans = exporter.getFinishedSpans();
     const root = spans.find((s) => s.name === "job.test")!;
@@ -72,8 +73,11 @@ describe("Strands telemetry", () => {
     expect(agentSpans.length).toBeGreaterThan(0);
     for (const span of agentSpans) {
       expect(span.spanContext().traceId).toBe(root.spanContext().traceId);
-      expect(span.attributes["app.user.id"]).toBe("user-1");
-      expect(span.attributes["app.event.id"]).toBe("event-1");
+      expect(span.attributes["user.id"]).toBe("user-1");
+      expect(span.attributes["session.id"]).toBe("event:event-1");
+      expect(span.attributes["langfuse.trace.metadata.event_id"]).toBe("event-1");
+      expect(span.attributes["langfuse.trace.metadata.job"]).toBe("test-job");
+      expect(span.attributes["langfuse.trace.name"]).toBe("job.test");
     }
     expect(agentSpans.some((s) => String(s.attributes["gen_ai.request.model"] ?? "").includes("claude"))).toBe(true);
   });
@@ -88,5 +92,31 @@ describe("Strands telemetry", () => {
       const choice = req.tool_choice as { type: string } | undefined;
       if (choice) expect(choice.type).toBe("auto");
     }
+  });
+});
+
+describe("configureLangfuseExporter", () => {
+  it("derives the OTLP endpoint and auth header from Langfuse keys", () => {
+    const saved = { ...process.env };
+    delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+    delete process.env.OTEL_EXPORTER_OTLP_HEADERS;
+    process.env.LANGFUSE_PUBLIC_KEY = "pk-lf-1";
+    process.env.LANGFUSE_SECRET_KEY = "sk-lf-1";
+    process.env.LANGFUSE_BASE_URL = "https://us.cloud.langfuse.com/";
+
+    expect(configureLangfuseExporter()).toBe(true);
+
+    expect(process.env.OTEL_EXPORTER_OTLP_ENDPOINT).toBe("https://us.cloud.langfuse.com/api/public/otel");
+    const auth = Buffer.from("pk-lf-1:sk-lf-1").toString("base64");
+    expect(process.env.OTEL_EXPORTER_OTLP_HEADERS).toBe(`Authorization=Basic%20${auth},x-langfuse-ingestion-version=4`);
+    process.env = saved;
+  });
+
+  it("leaves tracing off without Langfuse keys", () => {
+    const saved = { ...process.env };
+    delete process.env.LANGFUSE_PUBLIC_KEY;
+    delete process.env.LANGFUSE_SECRET_KEY;
+    expect(configureLangfuseExporter()).toBe(false);
+    process.env = saved;
   });
 });

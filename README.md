@@ -10,7 +10,7 @@ See [PLAN.md](./PLAN.md) for the product plan and roadmap.
 - **Supabase** — Postgres, auth (magic link, invite-only), RLS
 - **Strands Agents (TypeScript)** + **Claude** — AI agents
 - **Inngest** — scheduled and fan-out background jobs
-- **OpenTelemetry via Strands** — traces for every agent, model call, tool call and job
+- **Langfuse** (via Strands' OpenTelemetry tracing) — traces for every agent, model call, tool call and job
 - **Resend** — email digests
 
 ## How it works
@@ -27,15 +27,25 @@ Background jobs (`src/inngest/functions.ts`):
 - `track-event` runs the tracker agent and stores new updates (deduped by URL).
 - `daily-digest` (14:00 UTC) emails each user a summary of the last 24h.
 
-## Telemetry
+## Telemetry (Langfuse)
 
-`src/instrumentation.ts` calls Strands' `setupTracer()` at server start. Strands emits OpenTelemetry spans for each agent invocation (`invoke_agent`), loop cycle, model call (`chat`, with token usage) and tool call (`execute_tool`).
+`src/instrumentation.ts` calls Strands' `setupTracer()` at server start and exports traces over OTLP to Langfuse. Strands emits a span for each agent invocation (`invoke_agent`), loop cycle, model call (`chat`, with token usage) and tool call (`execute_tool`); Langfuse shows these as nested observations with inputs, outputs, latency and cost.
 
 App code wraps jobs and actions in `withSpan()` (`src/lib/telemetry/index.ts`), which:
-- creates a parent span, so agent spans nest under the job or action that triggered them
-- sets `app.user.id`, `app.event.id` and `app.job.name` as OTel baggage, which a baggage span processor copies onto **every** child span, including the ones Strands creates
+- creates a root span, so agent spans nest under the job or action that triggered them, and names the Langfuse trace after it
+- sets Langfuse trace attributes as OTel baggage, which a baggage span processor copies onto **every** span (Langfuse needs them on each span to filter and aggregate):
 
-Export uses standard OTel env vars (`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_HEADERS`), so any OTLP backend works: Jaeger locally, Langfuse or similar in production.
+| Attribute | Langfuse field | Value |
+|---|---|---|
+| `user.id` | User | Supabase user id |
+| `session.id` | Session | `event:<concert id>`, so every tracking run for a show is grouped |
+| `langfuse.trace.metadata.event_id` | Metadata | Concert id |
+| `langfuse.trace.metadata.job` | Metadata | Job name, e.g. `track-event` |
+| `langfuse.trace.name` | Trace name | Root span name |
+
+- flushes buffered spans when the root span ends, since serverless functions can freeze before the batch exporter runs
+
+Set `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` and `LANGFUSE_BASE_URL`; `src/lib/telemetry/setup.ts` derives the OTLP endpoint (`<base>/api/public/otel`) and Basic-auth header from them. Langfuse is the only trace backend; without these keys tracing is off.
 
 ## Local setup
 
@@ -48,9 +58,6 @@ npx supabase init                 # once
 npx supabase start
 npx supabase db reset             # applies supabase/migrations
 
-# Traces
-docker compose up -d              # Jaeger UI → http://localhost:16686
-
 # App + jobs (two terminals)
 npm run dev
 npm run inngest:dev               # Inngest dev UI → http://localhost:8288
@@ -59,7 +66,13 @@ npm run inngest:dev               # Inngest dev UI → http://localhost:8288
 npm run invite -- friend@example.com
 ```
 
-Keys you need: Anthropic API key, Ticketmaster Discovery API key (free at developer.ticketmaster.com), Resend API key (for digests).
+Keys you need: Anthropic API key, Ticketmaster Discovery API key (free at developer.ticketmaster.com), Resend API key (for digests), and Langfuse project keys.
+
+### Langfuse
+
+Easiest: create a free project at [cloud.langfuse.com](https://cloud.langfuse.com) (or `us.cloud.langfuse.com`), copy the public and secret keys from project settings into `.env.local`, and traces appear as soon as you use the app.
+
+To self-host instead, run Langfuse's Docker Compose setup (`git clone https://github.com/langfuse/langfuse.git && cd langfuse && docker compose up`). It serves on port 3000, the same as `next dev`, so change its web port mapping (e.g. `3001:3000` and `NEXTAUTH_URL=http://localhost:3001`) and set `LANGFUSE_BASE_URL=http://localhost:3001`.
 
 ### Supabase auth settings
 
